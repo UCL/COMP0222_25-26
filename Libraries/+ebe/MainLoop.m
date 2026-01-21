@@ -257,6 +257,24 @@ classdef MainLoop < ebe.core.ConfigurableComponent
             obj.accumulateResultsUpdatePeriod = accumulateResultsUpdatePeriod;
         end
 
+        function estimatorSet = getEstimators(obj)
+            % GETESTIMATORS Return the set of estimators which are registered
+            % with the main loop.
+            %
+            % Syntax:
+            %   estimators = mainLoop.getEstimators()
+            %
+            % Description:
+            %   Return the set of estimators registered with this main
+            %   loop. The estimators appear in the order registered with
+            %   the mainloop.
+            %
+            % Outputs:
+            %   estimators - (cell array of ebe.core.EventBasedEstimator)
+            %       The cell array of the estimators
+            estimatorSet = obj.estimators;
+        end
+
         function run(obj)
             % RUN execute the mainloop
             %

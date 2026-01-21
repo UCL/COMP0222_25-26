@@ -27,7 +27,7 @@ classdef EventGeneratorView < ebe.graphics.View
             %   eventGenerator - (ebe.core.EventGenerator)
             %       The event generator to be visualized
 
-            % Run the constructor
+            % Run the base class constructor
             obj@ebe.graphics.View(config);
 
             % Save the event generator data
