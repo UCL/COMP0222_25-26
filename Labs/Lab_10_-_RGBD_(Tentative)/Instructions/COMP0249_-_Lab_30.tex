@@ -1,0 +1,168 @@
+%%This is a very basic article template.
+%%There is just one section and two subsections.
+\documentclass{article}
+
+\input{setup}
+\input{comp0249}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+
+\usepackage{listings}
+\usepackage{xcolor}
+% Code snippet styling
+\definecolor{codegray}{rgb}{0.95,0.95,0.95}
+\lstset{backgroundcolor=\color{codegray}, basicstyle=\ttfamily\small, breaklines=true}
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} % Create horizontal rule command with 1 argument of height
+
+\begin{document}
+
+\title{
+\normalfont \normalsize
+{Department of Computer Science, University College London} \\ [25pt] % Your university, school and/or department name(s)
+\horrule{0.5pt} \\[0.4cm] % Thin top horizontal rule
+\huge COMP0222/COMP0249 Lab 30: 
+%\huge SLAM Lab
+\\RGBD Camera\\ % The assignment title
+\horrule{2pt} \\[0.5cm] % Thick bottom horizontal rule
+}
+% \author{John Smith} % Your name
+\date{\normalsize 10th Februray, 2026 ver. 20260210} % Today's date or a custom date
+\maketitle % Print the title
+
+\newcommand{\ebe}{\texttt{ebe}}
+
+\vspace{25 mm}
+\section{Scope and Purpose} 
+
+In this lab, you will explore 3D spatial data using the \textbf{Intel RealSense D455}. The D455 uses stereoscopic vision to provide a dense 3D point cloud. You will implement a data logging framework to capture synchronized RGB and Depth frames, ensuring they are spatially aligned.
+
+You will distinguish between raw sensor data and processed metadata, utilizing the camera's global shutter to capture motion-blur-free imagery. Finally, you will explore the fundamentals of 3D reconstruction by preparing your captured data for a Structure-from-Motion (SfM) pipeline using COLMAP. This enables building full 3D digital models.
+
+
+
+\section{Scenario}
+
+Motion and mapping in 3D space are characterized by 6 Degrees of Freedom (DoF), consisting of translation $(x, y, z)$ and rotation (roll, pitch, yaw). In this lab, you will perform data logging to build a dataset for 3D reconstruction. 3D sensing allows for the detection of complex geometries, such as table surfaces, hanging obstacles, and terrain irregularities. By aligning the depth map with the RGB sensor, you create a "RGB-D" image where every color pixel is associated with a real-world distance. This technique is fundamental for spatial computing, robotic manipulation, and large-scale architectural scanning.
+
+\newpage
+\section{Sensor Specification: Intel RealSense D455}
+
+The Intel RealSense D455 is a stereoscopic depth camera designed for long-range and high-precision applications, see Fig.~\ref{fig:realsense}. It operates based on the principle of \textbf{Stereo Vision with Infrared Projector assistance}.
+
+\begin{itemize}
+\item Mechanism: Two global shutter sensors (separated by a 95mm baseline) calculate depth via disparity. An infrared projector helps the sensors "see" texture on flat, featureless surfaces (like white walls).
+\item Synchronization: An internal hardware clock ensures that the RGB and Depth frames are captured at the exact same moment.
+\item Key Specifications:
+\begin{itemize}
+\item Ideal Range: 0.6m – 6m (Depth can reach up to 20m)
+\item Sensor Type: Global Shutter (minimizes motion blur)
+\item Field of View (H $\times$ V): $86^\circ \times 57^\circ$
+\item RGB Resolution: Up to $1280 \times 800$ at 30fps
+\item Connection: USB 3.1 Gen 1 (Type-C)
+\end{itemize}
+\end{itemize}
+
+ \begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.55\linewidth]{images/COLMAP/D455_device.png}
+\caption{Intel RealSense D455 Depth Camera.}
+\label{fig:realsense}
+\end{center}
+ \end{figure}
+
+ \section{Requirements} 
+
+This lab requires Python 3.8+. You \textbf{must} create a virtual environment to manage hardware-specific libraries. The RealSense SDK (\texttt{pyrealsense2}) is highly sensitive to binary compatibility; using a \texttt{venv} prevents conflicts with system-level packages (see the next section for venv).
+
+%\noindent \texttt{python -m venv rs\_env}\\ 
+%\noindent \texttt{rs\_env\textbackslash Scripts\textbackslash activate \# (Windows)}\\ 
+%\noindent \texttt{pip install pyrealsense2 opencv-python numpy}\
+
+
+\noindent Note: Ensure your computer is equipped with a USB 3.0/3.1 port. A USB 2.0 port will severely limit resolution and framerate.
+
+
+\section{Activities}
+
+%\subsection*{Activity 0: Setting up the Camera and Virtual Environment}
+
+%\begin{itemize} \item Objective: Isolate the development environment and verify hardware communication via the RealSense SDK. 
+%\item Instructions: 
+%\begin{itemize} 
+%\item Connect the D455 to a USB 3.0 port. 
+%\item Create and activate your \texttt{rs\_env} as described in the Requirements section. 
+%\item Open the \textbf{RealSense Viewer} to check the firmware version. If prompted, update the firmware to ensure sensor calibration is accurate. \end{itemize} \end{itemize}
+
+
+\subsection*{Activity 0: Basic Connectivity and Environment Setup}
+
+\begin{itemize}
+\item \textbf{Objective:} Establish communication with the Intel RealSense D455 and isolate the development environment to ensure library compatibility.
+\item \textbf{Instructions:}
+\begin{itemize}
+\item \textbf{Step 1: Driver and SDK Installation}
+    \begin{itemize}
+    \item \textbf{Windows:} Download the latest \texttt{Intel.RealSense.SDK-Win10.exe} from the Official GitHub Releases: \href{https://github.com/IntelRealSense/librealsense/releases/latest}{https://github.com/IntelRealSense/librealsense/releases/latest}. Run the installer to set up the RealSense Viewer and USB drivers.
+    \item \textbf{Ubuntu:} Register the Intel repository and install via \texttt{apt} using the following commands:
+    \begin{verbatim}
+    sudo apt install librealsense2-dkms librealsense2-utils 
+    sudo apt install librealsense2-dev librealsense2-dbg
+    \end{verbatim}
+    \end{itemize}
+\item \textbf{Step 2: Firmware Verification} 
+    Launch the \texttt{RealSense Viewer}. If a "Firmware Update Available" notification appears in the top-right corner, proceed with the update to ensure the D455's global shutter and IMU are properly calibrated.
+\item \textbf{Step 3: Virtual Environment Setup}
+    Open your project folder and initialize the Python environment:
+    \begin{verbatim}
+    python -m venv rs_env
+    source rs_env/bin/activate  # Linux/Mac
+    rs_env\Scripts\activate     # Windows
+    pip install pyrealsense2 opencv-python numpy
+    \end{verbatim}
+\end{itemize} 
+\end{itemize}
+\vspace{-3 mm}
+Once the viewer is installed, run it (see Fig.~\ref{fig:viewer}). Explore the 2D and 3D options, see the top right corner.
+ \begin{figure}[b!]
+\begin{center}
+\includegraphics[width=.79\linewidth]{images/COLMAP/D455_viewer.png}
+\caption{Intel D455 viewer.}
+\label{fig:viewer}
+\end{center}
+ \end{figure}
+
+
+\newpage
+\subsection*{Activity 1: Real-Time Aligned Data Logging}
+
+\begin{itemize} \item Objective: Capture synchronized RGB-D pairs where the depth map is aligned to the RGB camera's coordinate system. \item Instructions: \begin{itemize} \item Run the \texttt{d455\_logger.py} script. \item This script uses the \texttt{rs.align} object to mathematically project the depth data onto the RGB lens's viewpoint. \item Press \textbf{SPACE} to save a "Raw" frame. \end{itemize} \item Data Output: \begin{itemize} \item \texttt{.png}: Lossless RGB image. \item \texttt{.npy}: Raw 16-bit NumPy array containing depth in millimeters. \item \texttt{.csv}: Metadata log containing hardware exposure and gain values. \end{itemize} \end{itemize}
+
+
+\subsection*{Activity 2: Data Playback and Quality Inspection}
+
+\begin{itemize} 
+\item Objective: Review the logged 3D data and verify that the RGB-Depth alignment is correct. 
+\item Instructions: \begin{itemize} 
+\item Run the \texttt{d455\_browser.py} script. 
+\item Use \textbf{SPACE} to iterate through frames or \textbf{'c'} for continuous playback. 
+\item Observe the "Depth Shadows", i.e. areas where the camera could not see (represented as black pixels). Ensure your target objects are not within these shadow regions. 
+\end{itemize} 
+\end{itemize}
+
+
+\subsection*{Activity 3: Dataset Preparation for 3D Reconstruction (COLMAP)}
+
+\begin{itemize} 
+\item Objective: Export captured data for processing in an external Structure-from-Motion (SfM) pipeline. 
+\item Instructions: \begin{itemize} 
+\item Isolate the \texttt{.png} files into an \texttt{/images} directory. 
+\item Load the directory into \textbf{COLMAP}. 
+\item Perform Feature Extraction and Sequential Matching. 
+\item Because the D455 uses a global shutter, features will remain sharp even if the camera was moving during capture, resulting in a higher-quality 3D point cloud. 
+\item Try two sets of data: a small scale from a desktop object, a large scale environment, e.g. a room-sized environment.
+\end{itemize} 
+\end{itemize}
+
+\end{document}
